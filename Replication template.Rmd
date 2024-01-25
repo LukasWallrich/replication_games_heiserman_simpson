@@ -1,0 +1,113 @@
+---
+title             : "Template: Title: A comment on Speedy Analyst et al. (2022)"
+shorttitle        : "Template: Comment on Speedy Analyst et al. (2022)"
+
+author: 
+  - name          : "First Author"
+    affiliation   : "1"
+    corresponding : yes    # Define only one corresponding author
+    address       : "Postal address"
+    email         : "my@email.com"
+    role: # Contributorship roles (e.g., CRediT, https://credit.niso.org/)
+      - "Conceptualization"
+      - "Writing - Original Draft Preparation"
+      - "Writing - Review & Editing"
+  - name          : "Ernst-August Doelle"
+    affiliation   : "1,2"
+    role:
+      - "Writing - Review & Editing"
+      - "Supervision"
+
+affiliation:
+  - id            : "1"
+    institution   : "Wilhelm-Wundt-University"
+  - id            : "2"
+    institution   : "Konstanz Business School"
+
+authornote: |
+  Add complete departmental affiliations for each author here. Each new line herein must be indented, like this line.
+
+  Enter author note here.
+
+abstract: |
+  Summarize in few sentences the original study, focusing on the main results in the original abstract in terms of word claim which you attempt to reproduce or replicate. Provide information, if relevant, on the magnitude and statistical significance of the main results. Then report all your reproduction and replication results.
+  
+  In   the   event   that   there   are   too   many   robustness   tests   per   claim   to   report   themindividually in the Abstract, then report a summary measure such as the fraction of tests that replicates (i.e., statistically significant in the same direction as the original result) for each claim and the average relative size of the tests for each claim (or the average of these measures across the clams if there are also too many claims being reproduced or replicated to report them individually in the Abstract)
+
+  See the full template for further instructions and examples: https://osf.io/j2qrx
+  
+  <!-- https://tinyurl.com/ybremelq -->
+  
+keywords          : "keywords"
+wordcount         : "X"
+
+bibliography      : "r-references.bib"
+
+floatsintext      : no
+linenumbers       : yes
+draft             : no
+mask              : no
+
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+
+classoption       : "man"
+output            : papaja::apa6_pdf
+---
+
+```{r setup, include = FALSE}
+library("papaja")
+r_refs("r-references.bib")
+```
+
+```{r analysis-preferences}
+# Seed for random number generation
+set.seed(42)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+```
+
+# Introduction
+
+  <!-- Remove the introduction heading to be in line with APA style -->
+  <!-- This template only contains general instructions - refer to https://osf.io/j2qrx for examples and details -->
+
+*Instructions:* Briefly describe the main data sources, method, policy or treatment, time period and population for which the estimates apply. Then describe the main scientific claims (descriptive or causal) and robustness checks if those that are relevant for your re-analysis or replication. Quote the original part of the study that has the main scientific claim(s) including page number(s). As suggested in the Guide for Accelerating Computational Reproducibility in the Social Sciences (https://bitss.github.io/ACRE/), structure your summary of the main findings and methodology as follows: "The paper tested the effect of X on Y for population P, using method M. The main results show an effect of magnitude E (specify units and standard errors)" or "The paper estimated the value of Y (estimated or predicted) for population P under dimensions X using method M. The main results presented an estimate of magnitude E (specify units and standard errors)". This template assumes that the paper’s scientific claims are focused on estimating a causal relationship. In the event that the original study is estimating/predicting a descriptive statistic of a population, or something else, then describe and quote the results accordingly using precise claims from the original study.
+How to select claims to reproduce/replicate? There are three possibilities; (1) select claims for all "hypotheses tests" in the original study, (2) select claims mentioned in the abstract or (3) select claims for what is considered the main result in the paper as stated by the original author(s). For the last option, provide a quote from the original study confirming that the claim chosen is considered the main result by the original author(s).       	
+	Next, summarize your reproduction and/or replication. Start by stating how you have obtained the data and codes and if the original author(s) answered your request(s) a/nd questions. Indicate the repository where your programs and data are located. Then proceed with a description of your [conceptual reproducibility](https://i4replication.org/definitions.html) by describing if you have found coding error(s) and how they affect the main conclusions.
+	
+        	For replication, we adopt the definitions [here](https://i4replication.org/definitions.html). For robustness replicability, clearly state your robustness checks and how they affect the main point estimates. For direct and conceptual replications, clearly describe the new data. For conceptual replications, also describe the new procedures or they differ from the original study. Different procedures implies a different experimental design and/or analysis for experiments and different methods and/or analysis for observational data.
+        	
+For all three replication types, be precise and summarize your results as follows: “Implementing this robustness increases/decreases the size of the main point estimate for outcome Y by X and the estimate is not anymore statistically significant at the X% level ” or "Implementing this robustness check has no effect on the magnitude or the statistical significance of the main point estimate." Also report the coefficient (or other effect size), the standard error of the coefficient/effect size, the test statistic including df if relevant, and the p-value for all tests.
+
+# Reproducibility
+
+```{r}
+
+```
+
+
+*Instructions:* Describe in details if you have found coding error(s) and how they affect the main conclusions. In the event that the sign, magnitude or statistical significance is changed for the main estimates or robustness checks, report the new point estimates (e.g., in a table) in this section.
+
+	Fix the coding error(s) prior to conducting the replication, but make sure to clearly state and disentangle the effect of the coding error(s) vs the change(s) made to the data and codes/procedures in Section 3 - Replication.
+
+# Replication
+
+*Instructions:* Clearly state/describe which type of replication you are conducting. See definitions at the beginning of this document. For robustness replicability, present your robustness checks and how they impact the main point estimates one by one so that it is clear how each modification to the specification/analysis impacts the main conclusions. Then you may combine them. Also, clearly state why you conduct each specific robustness check and/or modify the setting/model.
+	Do not confuse general critiques of the original research with replication or robustness checks (Brown and Wood, 2018). For instance, any critique of the design or methodology (e.g., qualitatively discussing the validity of an exclusion restriction for an instrumental variable) should be included in a separate section and clearly labeled as general critiques rather than a replication exercise.
+
+
+# Conclusion
+
+*Instructions:* State the most important results of your work and what you have learned. You may also describe other empirical exercises that could be conducted by other replicators.
+
+
+\newpage
+
+# References
+
+::: {#refs custom-style="Bibliography"}
+:::
+
+
+

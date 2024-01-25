@@ -1,0 +1,36 @@
+---
+title: "Codebook creation"
+author: "Lukas Wallrich"
+date: "2024-01-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Creating codebooks
+
+The authors provide two datasets, but no further documentation - thus, we started by attempting to automatically generate some codebooks to understand the data
+
+```{r}
+library(haven)
+library(dplyr)
+library(codebook)
+
+dat1 <- read_dta("reproduction_materials/combined data OSF.dta")
+dat2 <- read_dta("reproduction_materials/manager survey data OSF.dta")
+
+```
+
+## Codebook for combined data
+
+```{r }
+codebook(dat1)
+```
+
+## Codebook for manager data
+
+```{r }
+codebook(dat2)
+```
