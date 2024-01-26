@@ -1,0 +1,238 @@
+---
+title: "Codebook creation"
+author: "Lukas Wallrich"
+date: "2024-01-25"
+output: html_document
+---
+
+
+## Creating codebooks
+
+The authors provide two datasets, but no further documentation - thus, we started by attempting to automatically generate some codebooks to understand the data
+
+```{r setup}
+library(haven)
+library(tidyverse)
+library(gt)
+library(patchwork)
+library(modelsummary)
+library(lmerTest)
+library(broom)
+
+dat1 <- read_dta("reproduction_materials/combined data OSF.dta")
+```
+
+## Table 1 (excluding Study 6)
+
+Likely typo in article - Table 1 states N Study 1 as 101, but data is 102, as is in note to Fig 2 (noone was excluded in that study, so changing sample size is odd)
+Missing condition information for 1 out of 102 - so should have been excluded
+
+```{r }
+dat1 %>% count(study, sample) %>% group_by(study) %>% 
+  summarise(N_total = sum(n), N_analytic = n[sample == 1]) %>% left_join(
+    
+    dat1 %>% group_by(study) %>% 
+      summarise(
+                Real_effort = any(!is.na(numbersearches)),
+                Stated_effort = any(!is.na(tokens)),
+                Bonus_expectations = (any(!is.na(s2_tokens_0
+    )) | any(!is.na(muchlower_score))))
+) %>% gt()
+
+# Exclude excluded participants
+
+dat1 <- dat1 %>% filter(sample == 1)
+
+```
+
+## Figure 2
+
+```{r fig.height=8, fig.width=6}
+s2 <- dat1 %>% 
+  filter(study == 2) %>% 
+  select(starts_with("s2_tokens_"), cond) %>%
+  pivot_longer(
+    cols = starts_with("s2_tokens"), 
+    names_to = "tokens", 
+    values_to = "expectation",
+    names_prefix = "s2_tokens_"
+  ) %>% filter(tokens != "mean") %>% 
+  mutate(tokens = as.numeric(tokens)) %>% 
+  group_by(tokens, cond) %>% 
+  summarise(mean = mean(expectation, na.rm = TRUE),
+         se = sd(expectation, na.rm = TRUE) / sqrt(sum(!is.na(expectation))),
+         ci_lower = mean - 1.96 * se,
+         ci_upper = mean + 1.96 * se) %>% 
+ggplot(aes(x = tokens, y = mean, color = haven::as_factor(cond))) +
+  geom_line() + 
+  scale_y_continuous(limits = c(1, 5)) +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2) +
+  labs(x = "Tokens contributed", y = "Subjective likelihood of bonus", col = "") +
+  scale_color_manual(values = c("Control" = "blue", "Advantage" = "green", "Disadvantage" = "orange")) +
+  theme_minimal()
+
+s3_5 <- dat1 %>% 
+  filter(study > 2) %>% 
+  select(matches("_score"), cond) %>%
+  pivot_longer(
+    cols = matches("_score"), 
+    names_to = c("performance", NA), 
+    values_to = "expectation",
+        names_sep = "_"
+  ) %>% 
+  mutate(performance = fct_recode(performance,
+                                  "Much Lower" = "muchlower",
+                                  "Lower" = "lower",
+                                  "About Same" = "same", 
+                                  "Higher" = "higher",
+                                  "Much Higher" = "muchhigher") %>% 
+           factor(levels = c("Much Lower", "Lower", "About Same", "Higher", "Much Higher"))) %>%
+  group_by(performance, cond) %>% 
+  summarise(mean = mean(expectation, na.rm = TRUE),
+         se = sd(expectation, na.rm = TRUE) / sqrt(sum(!is.na(expectation))),
+         ci_lower = mean - 1.96 * se,
+         ci_upper = mean + 1.96 * se) %>% 
+ggplot(aes(x = performance, y = mean, color = haven::as_factor(cond), group = haven::as_factor(cond), )) +
+  geom_line() + 
+    scale_y_continuous(limits = c(0, 100)) +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2) +
+  labs(x = "Performance relative to other employee(s)", y = "Subjective likelihood of bonus (%)", col = "") +
+  scale_color_manual(values = c("Control" = "blue", "Advantage" = "green", "Disadvantage" = "orange")) +
+  theme_minimal()
+
+p1 <- s2 / s3_5
+
+p1
+
+```
+Control group mean misreported in text, is mean of disadvantaged group
+
+## Means
+
+```{r}
+s2_means <- dat1 %>% 
+  filter(study == 2) %>%
+  rowid_to_column() %>% 
+  select(-tokens) %>% 
+  pivot_longer(
+    cols = starts_with("s2_tokens"), 
+    names_to = "tokens", 
+    values_to = "expectation",
+    names_prefix = "s2_tokens_"
+  ) %>% 
+  group_by(rowid) %>% 
+  summarise(cond = as_factor(cond)[1],
+            m_effort = mean(as.numeric(tokens), na.rm = TRUE), # Should be fixed, just code check
+            m_expectation = mean(expectation, na.rm = TRUE),
+            sd_expectation = sd(expectation, na.rm = TRUE)
+) 
+
+mod_s2_avg <- lm(m_expectation ~ cond, s2_means)
+
+modelsummary(mod_s2_avg, estimate = "{estimate} [{conf.low}, {conf.high}]",
+             statistic = "({std.error}), p = {p.value}",
+             gof_map = NA,
+             notes = glue::glue("df = {modelsummary::glance(mod_s2_avg)$df.residual}"),
+             title = "Average expectation in Study 2")
+             
+s3_5_means <- dat1 %>% 
+  filter(study > 2) %>%
+  rowid_to_column() %>% 
+  select(-tokens) %>% 
+  pivot_longer(
+    cols = matches("_score"), 
+    names_to = c("performance", NA), 
+    values_to = "expectation",
+        names_sep = "_"
+  ) %>% 
+  group_by(rowid) %>% 
+  summarise(study = study[1],
+            cond = as_factor(cond)[1],
+            effort_ratings = n(), # Should be fixed, just code check
+            m_expectation = mean(expectation, na.rm = TRUE),
+            sd_expectation = sd(expectation, na.rm = TRUE)
+) 
+
+mod_s3_5_avg <- lmer(m_expectation ~ cond  + (1 | study), s3_5_means)
+
+modelsummary(mod_s3_5_avg,
+             estimate = "{estimate} [{conf.low}, {conf.high}]",
+             statistic = "({std.error}), p = {p.value}",
+             title = "Average expectation in pooled studies 3-5")
+```
+
+## Slopes
+
+```{r}
+s2_expectations <- dat1 %>% 
+  filter(study == 2) %>%
+  rowid_to_column() %>% 
+  select(-tokens) %>% 
+  pivot_longer(
+    cols = starts_with("s2_tokens"), 
+    names_to = "tokens", 
+    values_to = "expectation",
+    names_prefix = "s2_tokens_"
+  ) %>% filter(tokens != "mean") %>% 
+  mutate(tokens = as.numeric(tokens), cond = as_factor(cond))
+
+s2_expectations <- s2_expectations %>% group_by(cond, rowid) %>% 
+  mutate(delta = expectation - lag(expectation)) %>% 
+  summarise(delta = mean(delta, na.rm = TRUE))
+
+
+mod_s2_slope <- lm(delta ~ cond, s2_expectations) %>% summary()
+
+modelsummary(mod_s2_slope, estimate = "{estimate} [{conf.low}, {conf.high}]",
+             statistic = "({std.error}), p = {p.value}",
+             gof_map = NA,
+             notes = glue::glue("df = {modelsummary::glance(mod_s2_slope)$df.residual}"),
+             title = "AExpected reward sensitivity in Study 2")
+
+s3_5_expectations <- dat1 %>% 
+  filter(study > 2) %>%
+  rowid_to_column() %>% 
+  select(-tokens) %>% 
+  pivot_longer(
+    cols = matches("_score"), 
+    names_to = c("performance", NA), 
+    values_to = "expectation",
+        names_sep = "_"
+  ) %>% mutate(performance = fct_recode(performance,
+                                  "Much Lower" = "muchlower",
+                                  "Lower" = "lower",
+                                  "About Same" = "same", 
+                                  "Higher" = "higher",
+                                  "Much Higher" = "muchhigher") %>% 
+           factor(levels = c("Much Lower", "Lower", "About Same", "Higher", "Much Higher")),
+           cond = as_factor(cond)) %>% 
+  group_by(study, cond, rowid) %>% 
+    mutate(delta = expectation - lag(expectation)) %>% 
+  summarise(delta = mean(delta, na.rm = TRUE))
+
+
+mod_s3_5_delta <- lmer(delta ~ cond  + (1 | study), s3_5_expectations)
+
+modelsummary(mod_s3_5_delta,
+             estimate = "{estimate} [{conf.low}, {conf.high}]",
+             statistic = "({std.error}), p = {p.value}",
+             title = "Expected reward sensitivity in pooled studies 3-5")
+```
+
+
+# Figure 2
+
+```{r}
+# Calculate standardised effects
+dat1 %>% 
+  filter(!is.na(cond)) %>% 
+  group_by(study, cond) %>% 
+  summarise(cond = as_factor(cond)[1],
+            m_effort = mean(coalesce(log(numbersearches), tokens), na.rm = TRUE),
+            sd_effort = sd(coalesce(log(numbersearches), tokens), na.rm = TRUE),
+            N = n(),
+            se = sd_effort / sqrt(N))
+
+
+```
+
