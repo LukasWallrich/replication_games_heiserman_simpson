@@ -1,3 +1,21 @@
+rm(list=ls())
+
+# set options
+options(stringsAsFactors = F)         # no automatic conversion of factors
+options("scipen" = 100, "digits" = 4) # suppress math annotation
+options(max.print = 1000)               # print max 1000 results
+
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(psych)
+library(ltm)
+library(nortest)
+library(moments)
+
+# ==============================================================================
+DF <- read_dta("Documents/GitHub/replication_games_heiserman_simpson/reproduction_materials/manager survey data OSF.dta")
 
 colnames(DF)
 # [1] "warm"               "trustworthy"        "friendly"           "honest"             "likeable"          
