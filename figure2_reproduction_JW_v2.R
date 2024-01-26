@@ -55,7 +55,7 @@ DF$cond %>% is.na %>% sum
 # comparing condition 2 and 1
 z_effort_cond1 <- cond_1 %>% 
   filter(study == 1) %>% 
-  pull(z_ln_effort)
+  pull(z_effort)
 
 z_effort_cond2 <- cond_2 %>% 
   filter(study == 1) %>% 
@@ -69,7 +69,7 @@ t_test_result21$p.value # 0.0921
 # comparing condition 3 and 1
 z_effort_cond1 <- cond_1 %>% 
   filter(study == 1) %>% 
-  pull(z_ln_effort)
+  pull(z_effort)
 
 z_effort_cond3 <- cond_3 %>% 
   filter(study == 1) %>% 
@@ -121,32 +121,31 @@ z_ln_effort_cond2 <- cond_2 %>%
 
 t_test_result21 <- t.test(z_ln_effort_cond1, z_ln_effort_cond2, na.rm = TRUE)
 
-t_test_result21$p.value # 0.0921
+t_test_result21$p.value # 0.6073
 
 # ------------------------------------------------------------------------------
 # comparing condition 3 and 1
 z_ln_effort_cond1 <- cond_1 %>% 
-  filter(study == 1) %>% 
-  pull(z_ln_ln_effort)
+  filter(study == 3) %>% 
+  pull(z_ln_effort)
 
 z_ln_effort_cond3 <- cond_3 %>% 
-  filter(study == 1) %>% 
+  filter(study == 3) %>% 
   pull(z_ln_effort)
 
 t_test_result31 <- t.test(z_ln_effort_cond1, z_ln_effort_cond3, na.rm = TRUE)
 
-t_test_result31$p.value # 0.000166
+t_test_result31$p.value # 0.2296
 
 # ==============================================================================
 # for study 4
-# for study 1
 # comparing condition 2 and 1
 z_ln_effort_cond1 <- cond_1 %>% 
-  filter(study == 1) %>% 
-  pull(z_ln_ln_effort)
+  filter(study == 4) %>% 
+  pull(z_ln_effort)
 
 z_ln_effort_cond2 <- cond_2 %>% 
-  filter(study == 1) %>% 
+  filter(study == 4) %>% 
   pull(z_ln_effort)
 
 t_test_result21 <- t.test(z_ln_effort_cond1, z_ln_effort_cond2, na.rm = TRUE)
@@ -156,46 +155,45 @@ t_test_result21$p.value # 0.0921
 # ------------------------------------------------------------------------------
 # comparing condition 3 and 1
 z_ln_effort_cond1 <- cond_1 %>% 
-  filter(study == 1) %>% 
-  pull(z_ln_ln_effort)
+  filter(study == 4) %>% 
+  pull(z_ln_effort)
 
 z_ln_effort_cond3 <- cond_3 %>% 
-  filter(study == 1) %>% 
+  filter(study == 4) %>% 
   pull(z_ln_effort)
 
 t_test_result31 <- t.test(z_ln_effort_cond1, z_ln_effort_cond3, na.rm = TRUE)
 
-t_test_result31$p.value # 0.000166
+t_test_result31$p.value # 0.0005366
 
 # ==============================================================================
 # for study 5
-# for study 1
 # comparing condition 2 and 1
 z_ln_effort_cond1 <- cond_1 %>% 
-  filter(study == 1) %>% 
-  pull(z_ln_ln_effort)
+  filter(study == 5) %>% 
+  pull(z_ln_effort)
 
 z_ln_effort_cond2 <- cond_2 %>% 
-  filter(study == 1) %>% 
+  filter(study == 5) %>% 
   pull(z_ln_effort)
 
 t_test_result21 <- t.test(z_ln_effort_cond1, z_ln_effort_cond2, na.rm = TRUE)
 
-t_test_result21$p.value # 0.0921
+t_test_result21$p.value # 0.2248
 
 # ------------------------------------------------------------------------------
 # comparing condition 3 and 1
 z_ln_effort_cond1 <- cond_1 %>% 
-  filter(study == 1) %>% 
-  pull(z_ln_ln_effort)
+  filter(study == 5) %>% 
+  pull(z_ln_effort)
 
 z_ln_effort_cond3 <- cond_3 %>% 
-  filter(study == 1) %>% 
+  filter(study == 5) %>% 
   pull(z_ln_effort)
 
 t_test_result31 <- t.test(z_ln_effort_cond1, z_ln_effort_cond3, na.rm = TRUE)
 
-t_test_result31$p.value # 0.000166
+t_test_result31$p.value # 0.001823
 
 # ==============================================================================
 
@@ -212,8 +210,151 @@ t_test_result31$p.value # 0.000166
 
 
 # ==============================================================================
-# for 
+# for study 1
 # calculate mean and get the 95% confidence interval
+result1_1 <- cond_1 %>%
+  filter(study == 1) %>%
+  summarize(mean = mean(z_effort, na.rm = TRUE),
+            lower_ci = t.test(z_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result1_1)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# 0.466    0.105    0.827
+
+result1_2 <- cond_2 %>%
+  filter(study == 1) %>%
+  summarize(mean = mean(z_effort, na.rm = TRUE),
+            lower_ci = t.test(z_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result1_2)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# 0.0276   -0.350    0.405
+
+result1_3 <- cond_3 %>%
+  filter(study == 1) %>%
+  summarize(mean = mean(z_effort, na.rm = TRUE),
+            lower_ci = t.test(z_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result1_3)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# -0.478   -0.795   -0.161
+
+# ------------------------------------------------------------------------------
+# for study 2
+result2_1 <- cond_1 %>%
+  filter(study == 2) %>%
+  summarize(mean = mean(z_effort, na.rm = TRUE),
+            lower_ci = t.test(z_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result2_1)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# 0.384   0.0410    0.727
+
+result2_2 <- cond_2 %>%
+  filter(study == 2) %>%
+  summarize(mean = mean(z_effort, na.rm = TRUE),
+            lower_ci = t.test(z_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result2_2)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# 0.0969   -0.246    0.439
+
+result2_3 <- cond_3 %>%
+  filter(study == 2) %>%
+  summarize(mean = mean(z_effort, na.rm = TRUE),
+            lower_ci = t.test(z_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result2_3)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# -0.463   -0.858  -0.0679
+
+# ------------------------------------------------------------------------------
+# for study 3
+result3_1 <- cond_1 %>%
+  filter(study == 3) %>%
+  summarize(mean = mean(z_ln_effort, na.rm = TRUE),
+            lower_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result3_1)
+
+result3_2 <- cond_2 %>%
+  filter(study == 3) %>%
+  summarize(mean = mean(z_ln_effort, na.rm = TRUE),
+            lower_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result3_2)
+
+result3_3 <- cond_3 %>%
+  filter(study == 3) %>%
+  summarize(mean = mean(z_ln_effort, na.rm = TRUE),
+            lower_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result3_3)
+
+# ------------------------------------------------------------------------------
+# for study 4
+result4_1 <- cond_1 %>%
+  filter(study == 4) %>%
+  summarize(mean = mean(z_ln_effort, na.rm = TRUE),
+            lower_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result4_1)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# 0.279   0.0984    0.460
+
+result4_2 <- cond_2 %>%
+  filter(study == 4) %>%
+  summarize(mean = mean(z_ln_effort, na.rm = TRUE),
+            lower_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result4_2)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# -0.0261   -0.235    0.183
+
+result4_3 <- cond_3 %>%
+  filter(study == 4) %>%
+  summarize(mean = mean(z_ln_effort, na.rm = TRUE),
+            lower_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result4_3)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# -0.283   -0.541  -0.0239
+
+# ------------------------------------------------------------------------------
+# for study 5
 result5_1 <- cond_1 %>%
   filter(study == 5) %>%
   summarize(mean = mean(z_ln_effort, na.rm = TRUE),
@@ -222,4 +363,30 @@ result5_1 <- cond_1 %>%
             .groups = 'drop') 
 
 print(result5_1)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# 0.153   0.0196    0.287
 
+result5_2 <- cond_2 %>%
+  filter(study == 5) %>%
+  summarize(mean = mean(z_ln_effort, na.rm = TRUE),
+            lower_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result5_2)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# 0.0290   -0.122    0.180
+
+result5_3 <- cond_3 %>%
+  filter(study == 5) %>%
+  summarize(mean = mean(z_ln_effort, na.rm = TRUE),
+            lower_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[1],
+            upper_ci = t.test(z_ln_effort, conf.level = 0.95)$conf.int[2],
+            .groups = 'drop') 
+
+print(result5_3)
+# mean lower_ci upper_ci
+# <dbl>    <dbl>    <dbl>
+# -0.186   -0.351  -0.0200
