@@ -1,0 +1,108 @@
+---
+title: "Codebook creation"
+author: "Lukas Wallrich"
+date: "2024-01-25"
+output: html_document
+---
+
+
+## Creating codebooks
+
+The authors provide two datasets, but no further documentation - thus, we started by attempting to automatically generate some codebooks to understand the data
+
+```{r setup}
+library(haven)
+library(tidyverse)
+library(psych)
+
+DF <- read_dta("reproduction_materials/manager survey data OSF.dta")
+```
+
+# Recreating scales
+
+```{r}
+
+# warmth (warm, trustworthy, friendly, honest, likeable, sincere, α = 0.90) 
+# competence (competent, intelligent, skilled, efficient, assertive, confident, α = 0.88)
+alpha(DF[, c(1:6)])$total$raw_alpha
+alpha(DF[, c(7:12)])$total$raw_alpha
+```
+
+
+```{r}
+DF$warmth_r = rowMeans(DF[, c(1:6)], na.rm = T)
+
+# Minimal rounding differences at the 10^-7 level
+max(abs(DF$warmth - DF$warmth_r))
+
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DF$comp_r = rowMeans(DF[, c(7:12)], na.rm = T)
+# Minimal rounding differences at the 10^-7 level
+max(abs(DF$comp - DF$comp_r))
+
+DF$warmth_r_cent = DF$warmth_r - 4 # centering 
+max(abs(DF$warmth_r_cent - DF$warmth_cent))
+
+
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+DF$comp_r_cent = DF$comp_r - 4 # centering 
+max(abs(DF$comp_r_cent - DF$comp_cent))
+
+DF$preference_r_cent <- (DF %>% dplyr::select(prefer, promote_bonus, hire) %>% rowMeans(na.rm = T)) - 4
+
+# Again, minimal rounding diffs
+max(abs(DF$work_outcome_cent - DF$preference_r_cent))
+```
+
+## Figure 4
+
+```{r}
+warmth_mod <- lm(warmth_r_cent ~ 1, DF) 
+warmth_mod %>% summary()
+comp_mod <- lm(comp_r_cent ~ 1, DF) 
+comp_mod %>% summary()
+
+work_mod <- lm(preference_r_cent ~ 1, DF) 
+
+lm((prefer-4) ~ 1, DF) %>% summary()
+lm((hire-4) ~ 1, DF) %>% summary()
+lm((promote_bonus-4) ~ 1, DF) %>% summary()
+```
+
+
+```{r}
+
+df_plot <- DF %>% 
+    pivot_longer(c(warmth_r_cent, comp_r_cent, preference_r_cent)) %>% 
+  mutate(name = fct_recode(name, 
+                           "Competence" = "comp_r_cent",
+                           "Warmth" = "warmth_r_cent",
+                           "Work outcomes" = "preference_r_cent"),
+         name = factor(name, levels = c("Warmth", "Competence", "Work outcomes")))
+  
+df_means <- df_plot %>% group_by(name) %>% 
+                  summarize(mean_preference = mean(value), se = sd(value)/sqrt(n()))  
+
+df_means$p <- NA
+df_means$p[df_means$name == "Warmth"] <- summary(warmth_mod)$coefficients[1,4]
+df_means$p[df_means$name == "Competence"] <- summary(comp_mod)$coefficients[1,4]
+df_means$p[df_means$name == "Work outcomes"] <- summary(work_mod)$coefficients[1,4]
+
+max(df_means$p)
+  
+ggplot(df_plot, aes(name, value, color = name)) +
+  geom_jitter() +
+  geom_errorbar(data = df_means, 
+                aes(ymin = mean_preference - 1.96 * se, ymax = mean_preference + 1.96 * se, y = mean_preference), 
+                width = 0.2, size = 0.5, col = "black") +
+  geom_point(data = df_means, aes(y = mean_preference), col = "black") +
+
+  scale_color_manual(values = c("blue", "orange", "grey")) +
+  theme_minimal() +
+  labs(x = "", y = "Preference for advantaged category", caption = "All p-values testing the means against 0 (neutrality) < .001")
+
+
+```
+
+
