@@ -10,6 +10,8 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(lme4)
+library(margins)
+library(ggplot2)
 
 # ==============================================================================
 DF = read_dta("Documents/GitHub/replication_games_heiserman_simpson/reproduction_materials/combined data OSF.dta")
