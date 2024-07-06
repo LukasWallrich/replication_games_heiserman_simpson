@@ -12,12 +12,15 @@ The authors provide two datasets, but no further documentation - thus, we starte
 
 ```{r setup}
 library(haven)
-library(tidyverse)
 library(gt)
 library(patchwork)
 library(modelsummary)
 library(lmerTest)
 library(broom)
+library(metafor)
+library(broom.mixed)
+library(tidyverse)
+
 
 dat1 <- read_dta("reproduction_materials/combined data OSF.dta")
 ```
@@ -132,7 +135,7 @@ mod_s2_avg <- lm(m_expectation ~ cond, s2_means)
 modelsummary(mod_s2_avg, estimate = "{estimate} [{conf.low}, {conf.high}]",
              statistic = "({std.error}), p = {p.value}",
              gof_map = NA,
-             notes = glue::glue("df = {modelsummary::glance(mod_s2_avg)$df.residual}"),
+             notes = as.character(glue::glue("df = {modelsummary::glance(mod_s2_avg)$df.residual}")),
              title = "Average expectation in Study 2")
              
 s3_5_means <- dat1 %>% 
@@ -186,8 +189,8 @@ mod_s2_slope <- lm(delta ~ cond, s2_expectations) %>% summary()
 modelsummary(mod_s2_slope, estimate = "{estimate} [{conf.low}, {conf.high}]",
              statistic = "({std.error}), p = {p.value}",
              gof_map = NA,
-             notes = glue::glue("df = {modelsummary::glance(mod_s2_slope)$df.residual}"),
-             title = "AExpected reward sensitivity in Study 2")
+             notes = as.character(glue::glue("df = {modelsummary::glance(mod_s2_slope)$df.residual}")),
+             title = "Expected reward sensitivity in Study 2")
 
 s3_5_expectations <- dat1 %>% 
   filter(study > 2) %>%
@@ -220,19 +223,219 @@ modelsummary(mod_s3_5_delta,
 ```
 
 
-# Figure 2
+# Figure 2 (& table)
 
 ```{r}
 # Calculate standardised effects
-dat1 %>% 
+summaries <- dat1 %>% 
   filter(!is.na(cond)) %>% 
+  group_by(study) %>% 
+  mutate(z_effort = (coalesce(log(numbersearches), tokens) - mean(coalesce(log(numbersearches), tokens), na.rm = TRUE))/sd(coalesce(log(numbersearches), tokens), na.rm = TRUE)) %>% 
   group_by(study, cond) %>% 
   summarise(cond = as_factor(cond)[1],
-            m_effort = mean(coalesce(log(numbersearches), tokens), na.rm = TRUE),
-            sd_effort = sd(coalesce(log(numbersearches), tokens), na.rm = TRUE),
+            m_effort = mean(z_effort, na.rm = TRUE),
+            sd_effort = sd(z_effort, na.rm = TRUE),
             N = n(),
-            se = sd_effort / sqrt(N))
+            se = sd_effort / sqrt(N), 
+            .groups = "drop") %>% 
+  mutate(conf.low = m_effort - 1.96 * se,
+         conf.high = m_effort + 1.96 * se,
+         vi = se^2)
+
+# Add p-values per study
+p_values <- dat1 %>%
+  filter(!is.na(cond)) %>%
+  group_by(study) %>%
+  mutate(z_effort = (coalesce(log(numbersearches), tokens) - 
+                      mean(coalesce(log(numbersearches), tokens), na.rm = TRUE)) / 
+                      sd(coalesce(log(numbersearches), tokens), na.rm = TRUE),
+         cond = cond %>% as_factor() %>% relevel(ref = "Control")) %>%
+  group_by(study) %>%
+  do({
+        data <- .
+    model <- lm(z_effort ~ cond, data = data)
+    tidy(model) %>%
+      filter(term != "(Intercept)") %>% # Remove the intercept term
+      mutate(study = unique(data$study))
+  }) %>%
+  transmute(study, cond = term %>% str_remove("cond"), p_value = p.value) %>%
+  ungroup()
+
+summaries <- summaries %>% left_join(p_values)
+
+# Run meta-analyses
+
+## Model without an intercept to get estimates and standard errors for each condition
+model_no_intercept <- rma.mv(yi = m_effort, V = vi, mods = ~ factor(cond) - 1, random = ~ 1 | study, data = summaries)
+estimates_no_intercept <- coef(summary(model_no_intercept))[, "estimate"]
+se_no_intercept <- coef(summary(model_no_intercept))[, "se"]
+
+## Model with condition as a moderator to get p-values comparing each condition to control
+summaries$cond <- relevel(factor(summaries$cond), ref = "Control")
+model_with_intercept <- rma.mv(yi = m_effort, V = vi, mods = ~ cond, random = ~ 1 | study, data = summaries)
+summary_with_intercept <- summary(model_with_intercept)
+
+## Extract p-values from the model with intercept
+p_values <- coef(summary_with_intercept)[-1, "pval"]
+p_values <- c(NA, p_values) # Control comparison is NA
+
+meta_results <- tibble(
+  study = "meta",
+  cond = levels(factor(summaries$cond)),
+  m_effort = estimates_no_intercept,
+  se = se_no_intercept,
+  p_value = p_values,
+  conf.low = m_effort - 1.96 * se,
+  conf.high = m_effort + 1.96 * se
+)
+
+fig2_res <- meta_results %>% bind_rows(summaries %>% mutate(study = as.character(study)), .)
+
+# Function to calculate t-test p-value using summary statistics
+fig2_res %>% select(-vi) %>% 
+gt() %>% 
+  fmt_number(columns = c(m_effort, conf.low, conf.high, se, sd_effort), decimals = 3) %>% 
+  fmt(
+    columns = p_value,
+    fns = \(p) timesaveR::fmt_p(p, equal_sign = FALSE)
+  )
+
+# Convert p-values to a readable format for annotations
+fig2_res <- fig2_res %>%
+  mutate(p_label = ifelse(is.na(p_value), "", paste0("p ", timesaveR::fmt_p(p_value, equal_sign = TRUE, digits = 3))))
+
+# Create the plot using ggplot2
+# Reorder the conditions
+fig2_res$cond <- factor(fig2_res$cond, levels = c("Control", "Advantage", "Disadvantage"))
+
+# Create the plot using ggplot2
+ggplot(fig2_res, aes(x = as.factor(study), y = m_effort, color = cond, group  = cond)) +
+  geom_point(position = position_dodge(width = 0.7), size = 3, shape = 16) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, position = position_dodge(width = 0.7)) +
+  geom_text(aes(label = p_label, y = conf.low), position = position_dodge(width = 0.7), vjust = 1.4, size = 3, color = "black") +
+  labs(x = "Study", y = "Standardized mean", color = NULL) +
+  theme_minimal() +
+  theme(legend.position = "bottom", legend.title = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_color_manual(values = c("Control" = "blue", "Advantage" = "darkgreen", "Disadvantage" = "darkorange")) +
+  scale_x_discrete(labels = c("1" = "Study 1", "2" = "Study 2", "3" = "Study 3", "4" = "Study 4",
+                              "5" = "Study 5", "meta" = "Mini meta-analysis")) +
+  guides(color = guide_legend(override.aes = list(shape = 16))) +
+  expand_limits(y = c(min(fig2_res$conf.low) - 0.1, max(fig2_res$conf.high)))
 
 
+
+```
+# Mediation
+
+```{r}
+# Study 2
+med_data <- dat1 %>% 
+  filter(!is.na(cond)) %>% 
+  group_by(study) %>% 
+  mutate(z_perf_slope = coalesce(scale(s2_performance_slope) %>% as.numeric(),
+                                 scale(performance_slope) %>% as.numeric()),
+         z_numbersearches = scale(numbersearches) %>% as.numeric(),
+         z_tokens = scale(tokens) %>% as.numeric(),
+         cond = as_factor(cond)) %>% 
+  ungroup() %>% 
+  filter(!is.na(z_perf_slope)) %>% 
+  mutate(timesaveR::dummy_code(cond))
+```
+
+## Regression results for Study 2
+
+```{r}
+slope_mod_s2 <- med_data %>% filter(study == 2) %>% lm(z_tokens ~ z_perf_slope, .)
+
+slope_mod_s2 %>% tidy(conf.int = TRUE) %>% 
+  mutate(df = slope_mod_s2$df.residual) %>% 
+  filter(term != "(Intercept)") %>% 
+  glimpse()
+```
+
+## Regression results for Study 3-5
+
+```{r}
+library(lmerTest)
+slope_mod_s3_5 <- med_data %>% filter(study > 2) %>% 
+  lmer(z_numbersearches ~ z_perf_slope + (1 | study), .)
+
+slope_mod_s3_5 %>% summary()
+```
+
+## Mediation results
+
+Note that N in Fig 3 is reported as 844, so that it corresponds to these results - even though it is not stated that the Fig only contains 3-5 rather than 2-5. Pattern for S2 looks very similar, though effects are larger (in line with regression results).
+
+```{r}
+library(lavaan)
+med_data <- med_data %>% mutate(z_effort = coalesce(z_tokens, z_numbersearches))
+
+mod_full <- ("
+  # Path from condition (cond) to mediator (z_perf_slope)
+  z_perf_slope ~ a1 * cond_advantage + a2 * cond_disadvantage
+
+  # Path from condition (cond) to outcome (z_effort)
+  z_effort ~ Advantage * cond_advantage + Disadvantage * cond_disadvantage + b * z_perf_slope
+")
+
+mod_reduced <- ("
+  z_effort ~ Advantage * cond_advantage + Disadvantage * cond_disadvantage
+")
+
+med_res <- sem(mod_full, data = med_data %>% filter(study > 2), cluster = "study") %>%
+  tidy(conf.int = TRUE) %>%
+  filter(str_detect(label, "Advantage|Disadvantage")) %>%
+  transmute(model = "full", cond = label, study = "3-5", estimate, conf.low, conf.high, p.value) %>%
+  bind_rows(
+    sem(mod_reduced, data = med_data %>% filter(study > 2), cluster = "study") %>% tidy(conf.int = TRUE) %>% filter(str_detect(label, "Advantage|Disadvantage")) %>% transmute(model = "reduced", cond = label, study = "3-5", estimate, conf.low, conf.high, p.value)
+  ) %>%
+  bind_rows(
+    sem(mod_full, data = med_data %>% filter(study == 2)) %>% tidy(conf.int = TRUE) %>% filter(str_detect(label, "Advantage|Disadvantage")) %>% transmute(model = "full", cond = label, study = "2", estimate, conf.low, conf.high, p.value) %>% bind_rows(
+      sem(mod_reduced, data = med_data %>% filter(study == 2)) %>% tidy(conf.int = TRUE) %>% filter(str_detect(label, "Advantage|Disadvantage")) %>% transmute(model = "reduced", cond = label, study = "2", estimate, conf.low, conf.high, p.value)
+    )
+  ) %>%
+  mutate(p_label = paste0("p ", timesaveR::fmt_p(p.value, equal_sign = TRUE, digits = 3)))
+
+med_res %>%
+  gt() %>%
+  fmt_number(columns = c(estimate, conf.low, conf.high), decimals = 3) %>%
+  fmt_number(columns = p.value, decimals = 4)
+
+med_res %>%
+  group_by(study, cond) %>%
+  summarise(
+    share_mediated = 1 - (estimate[1] / estimate[2]), order = paste(model[1], model[2]),
+    .groups = "drop_last"
+  ) %>%
+  dplyr::select(-order) %>%
+  gt() %>%
+  fmt_percent(columns = share_mediated, decimals = 1)
+
+med_res %>%
+  mutate(model = factor(model, levels = c("reduced", "full"))) %>%
+  ggplot(aes(x = cond, y = estimate, group = model, shape = model, color = model)) +
+  geom_point(size = 3, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+    width = 0.2, position = position_dodge(width = 0.4)
+  ) +
+  geom_text(aes(y = conf.low - 0.05, label = p_label),
+    color = "black",
+    position = position_dodge(width = 0.4),
+    vjust = 1, size = 3
+  ) +
+  facet_wrap(~study, ncol = 2, labeller = labeller(study = c("2" = "Study 2", "3-5" = "Study 3-5"))) +
+  scale_shape_manual(values = c(16, 1), labels = c("Reduced model", "Full model")) +
+  scale_color_manual(values = c("black", "black"), labels = c("Reduced model", "Full model")) +
+  labs(x = "", y = "Standardized effect", shape = "", color = "") +
+  scale_y_continuous(limits = c(-1.4, 0.5), breaks = round(seq(-1.4, 0.4, by = 0.2), 2)) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.title.y = element_text(margin = margin(r = 10)),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank()
+  ) +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black")
 ```
 
